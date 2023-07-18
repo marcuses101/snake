@@ -1,6 +1,6 @@
-use std::fmt;
+use std::{fmt, vec};
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Direction {
     Up,
     Right,
@@ -33,31 +33,51 @@ impl fmt::Display for Position {
         write!(f, "x: {}, y: {}", self.x, self.y)
     }
 }
+#[derive(Debug)]
+pub struct Tail {
+    positions: Vec<Position>,
+    length: usize,
+}
 
 #[derive(Debug)]
 pub struct Player {
-    pub position: Position,
-    pub direction: Direction,
-    pub length: isize,
+    pub head_position: Position,
+    pub heading: Direction,
+    pub tail: Tail,
 }
 
 impl Player {
     pub fn new() -> Self {
         return Self {
-            position: Position { x: 0, y: 0 },
-            direction: Direction::Right,
-            length: 1,
+            head_position: Position { x: 0, y: 0 },
+            heading: Direction::Right,
+            tail: Tail {
+                positions: vec![Position { x: -1, y: 0 }],
+                length: 1,
+            },
         };
     }
     pub fn move_player(&mut self) -> () {
-        match self.direction {
-            Direction::Up => self.position.y += 1,
-            Direction::Right => self.position.x += 1,
-            Direction::Down => self.position.y -= 1,
-            Direction::Left => self.position.x -= 1,
+        match self.heading {
+            Direction::Up => self.head_position.y += 1,
+            Direction::Right => self.head_position.x += 1,
+            Direction::Down => self.head_position.y -= 1,
+            Direction::Left => self.head_position.x -= 1,
         };
     }
-    pub fn change_direction(&mut self, direction: Direction) {
-        self.direction = direction
+    pub fn change_heading(&mut self, new_direction: Direction) -> () {
+        let new_heading: Option<Direction> = match (&self.heading, new_direction) {
+            (Direction::Up | Direction::Down, Direction::Right) => Some(Direction::Right),
+            (Direction::Up | Direction::Down, Direction::Left) => Some(Direction::Left),
+            (Direction::Left | Direction::Right, Direction::Up) => Some(Direction::Up),
+            (Direction::Left | Direction::Right, Direction::Down) => Some(Direction::Down),
+            _ => None,
+        };
+        if let Some(direction) = new_heading {
+            self.heading = direction;
+        }
+    }
+    pub fn grow() {
+        todo!();
     }
 }
