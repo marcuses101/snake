@@ -27,6 +27,10 @@ impl TryFrom<String> for Direction {
     }
 }
 
+pub struct PowerUp {
+    position: Position,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Position {
     x: isize,
@@ -94,7 +98,7 @@ impl Player {
                 y: self.head_position.y - 1,
             },
         };
-        self.tail.update_positions(old_position, TileState::Normal);
+        self.tail.update_positions(old_position, MoveType::Normal);
     }
     pub fn change_heading(&mut self, new_direction: Direction) -> () {
         let new_heading: Option<Direction> = match (&self.heading, new_direction) {

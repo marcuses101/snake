@@ -1,6 +1,6 @@
 extern crate termion;
 
-use snake::player::{Direction, Player};
+use snake::game::App;
 use std::io;
 
 fn read_input() -> io::Result<String> {
@@ -15,23 +15,5 @@ fn read_input() -> io::Result<String> {
 }
 
 fn main() {
-    let mut player: Player = Player::new();
-    let terminal_size = termion::terminal_size().unwrap();
-    dbg!(terminal_size);
-    println!("{}", &player.head_position);
-    player.move_player();
-    println!("{}", &player.head_position);
-    loop {
-        let user_input = read_input().unwrap();
-        match Direction::try_from(user_input) {
-            Ok(dir) => {
-                player.change_heading(dir);
-                player.move_player();
-            }
-            Err(error) => {
-                eprint!("{}", error);
-            }
-        };
-        println!("{}", &player.head_position);
-    }
+    let app = App::new();
 }
