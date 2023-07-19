@@ -1,4 +1,4 @@
-use std::{fmt, vec};
+use std::{collections::VecDeque, fmt, vec};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Direction {
@@ -6,6 +6,11 @@ pub enum Direction {
     Right,
     Down,
     Left,
+}
+
+enum MoveType {
+    Normal,
+    Powerup,
 }
 
 impl TryFrom<String> for Direction {
@@ -22,10 +27,15 @@ impl TryFrom<String> for Direction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Position {
     x: isize,
     y: isize,
+}
+impl Position {
+    fn new(x: isize, y: isize) -> Self {
+        return Self { x, y };
+    }
 }
 
 impl fmt::Display for Position {
@@ -35,8 +45,16 @@ impl fmt::Display for Position {
 }
 #[derive(Debug)]
 pub struct Tail {
-    positions: Vec<Position>,
-    length: usize,
+    positions: VecDeque<Position>,
+}
+
+impl Tail {
+    fn update_positions(&mut self, new_position: Position, new_position_tile: MoveType) -> () {
+        self.positions.push_front(new_position);
+        if let MoveType::Normal = new_position_tile {
+            self.positions.pop_back();
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -52,18 +70,31 @@ impl Player {
             head_position: Position { x: 0, y: 0 },
             heading: Direction::Right,
             tail: Tail {
-                positions: vec![Position { x: -1, y: 0 }],
-                length: 1,
+                positions: VecDeque::from([Position::new(-1, 0)]),
             },
         };
     }
     pub fn move_player(&mut self) -> () {
-        match self.heading {
-            Direction::Up => self.head_position.y += 1,
-            Direction::Right => self.head_position.x += 1,
-            Direction::Down => self.head_position.y -= 1,
-            Direction::Left => self.head_position.x -= 1,
+        let old_position = self.head_position;
+        self.head_position = match self.heading {
+            Direction::Up => Position {
+                x: self.head_position.x,
+                y: self.head_position.y + 1,
+            },
+            Direction::Right => Position {
+                x: self.head_position.x + 1,
+                y: self.head_position.y,
+            },
+            Direction::Left => Position {
+                x: self.head_position.x - 1,
+                y: self.head_position.y,
+            },
+            Direction::Down => Position {
+                x: self.head_position.x,
+                y: self.head_position.y - 1,
+            },
         };
+        self.tail.update_positions(old_position, TileState::Normal);
     }
     pub fn change_heading(&mut self, new_direction: Direction) -> () {
         let new_heading: Option<Direction> = match (&self.heading, new_direction) {
@@ -76,8 +107,5 @@ impl Player {
         if let Some(direction) = new_heading {
             self.heading = direction;
         }
-    }
-    pub fn grow() {
-        todo!();
     }
 }
