@@ -1,4 +1,6 @@
-use std::{collections::VecDeque, fmt, vec};
+use std::{collections::VecDeque, fmt};
+
+use crate::game::Tile;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Direction {
@@ -7,10 +9,9 @@ pub enum Direction {
     Down,
     Left,
 }
-
-enum MoveType {
+pub enum MoveType {
     Normal,
-    Powerup,
+    PowerUp,
 }
 
 impl TryFrom<String> for Direction {
@@ -27,14 +28,10 @@ impl TryFrom<String> for Direction {
     }
 }
 
-pub struct PowerUp {
-    position: Position,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct Position {
-    x: isize,
-    y: isize,
+    pub x: isize,
+    pub y: isize,
 }
 impl Position {
     fn new(x: isize, y: isize) -> Self {
@@ -53,9 +50,9 @@ pub struct Tail {
 }
 
 impl Tail {
-    fn update_positions(&mut self, new_position: Position, new_position_tile: MoveType) -> () {
+    fn update_positions(&mut self, new_position: Position, move_type: MoveType) -> () {
         self.positions.push_front(new_position);
-        if let MoveType::Normal = new_position_tile {
+        if let MoveType::Normal = move_type {
             self.positions.pop_back();
         }
     }
@@ -78,9 +75,11 @@ impl Player {
             },
         };
     }
-    pub fn move_player(&mut self) -> () {
-        let old_position = self.head_position;
-        self.head_position = match self.heading {
+    pub fn move_player(&mut self, new_position: Position, move_type: MoveType) {
+        todo!();
+    }
+    pub fn calculate_new_position(&self) -> Position {
+        match self.heading {
             Direction::Up => Position {
                 x: self.head_position.x,
                 y: self.head_position.y + 1,
@@ -97,8 +96,7 @@ impl Player {
                 x: self.head_position.x,
                 y: self.head_position.y - 1,
             },
-        };
-        self.tail.update_positions(old_position, MoveType::Normal);
+        }
     }
     pub fn change_heading(&mut self, new_direction: Direction) -> () {
         let new_heading: Option<Direction> = match (&self.heading, new_direction) {

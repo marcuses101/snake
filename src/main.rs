@@ -1,6 +1,6 @@
 extern crate termion;
 
-use snake::{game::App, welcome::WELCOME_SCREEN};
+use snake::app::App;
 use std::io;
 
 const MIN_TERMINAL_COLUMNS: u16 = 80;
