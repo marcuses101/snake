@@ -1,4 +1,4 @@
-use crate::player::Player;
+use crate::{player::Player, welcome::WELCOME_SCREEN};
 
 enum GameState {
     WelcomeScreen,
@@ -21,6 +21,19 @@ impl App {
             GameState::WelcomeScreen => GameState::GamePlayScreen,
             GameState::GamePlayScreen => GameState::ScoreScreen,
             GameState::ScoreScreen => GameState::WelcomeScreen,
+        };
+    }
+    pub fn run(&self) {
+        match self.state {
+            GameState::WelcomeScreen => {
+                println!("{}", WELCOME_SCREEN);
+            }
+            GameState::GamePlayScreen => {
+                todo!()
+            }
+            GameState::ScoreScreen => {
+                todo!()
+            }
         };
     }
 }
