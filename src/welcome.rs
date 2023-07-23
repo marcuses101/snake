@@ -1,4 +1,4 @@
-pub const WELCOME_SCREEN: &'static str = r#"
+pub const WELCOME_SCREEN: &str = r#"
 --------------------------------------------------------------------------------
 |                                                                              |
 |                                                                              |
@@ -12,10 +12,11 @@ pub const WELCOME_SCREEN: &'static str = r#"
 |                                                                              |
 |                                                                              |
 |                                                                              |
+|                WELCOME                                                       |
 |                                                                              |
+|                     TO                                                       |
 |                                                                              |
-|                                                                              |
-|                                                                              |
+|                      SNAKE                                                   |
 |                                                                              |
 |                                                                              |
 |                                                                              |
