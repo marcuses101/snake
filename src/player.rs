@@ -32,11 +32,11 @@ pub struct Position {
     pub row_number: isize,
 }
 impl Position {
-    fn new(column_number: isize, row_number: isize) -> Self {
-        return Self {
+    pub fn new(column_number: isize, row_number: isize) -> Self {
+        Self {
             column_number,
             row_number,
-        };
+        }
     }
 }
 
@@ -56,9 +56,9 @@ pub struct Tail {
 
 impl Tail {
     pub fn new(column_number: isize, row_number: isize) -> Self {
-        return Tail {
+        Tail {
             positions: VecDeque::from([Position::new(column_number, row_number)]),
-        };
+        }
     }
     pub fn check(&self, column_number: isize, row_number: isize) -> bool {
         return self
@@ -77,19 +77,19 @@ pub struct Player {
 
 impl Player {
     pub fn new(x: isize, y: isize) -> Self {
-        return Self {
+        Self {
             head_position: Position {
                 column_number: x,
                 row_number: y,
             },
             heading: Direction::Right,
-        };
+        }
     }
     /// Changes the head_position of the player and returns the previous position
     pub fn move_player(&mut self, new_position: Position) -> Position {
         let previous_position = self.head_position;
         self.head_position = new_position;
-        return previous_position;
+        previous_position
     }
     pub fn calculate_new_position(&self) -> Position {
         match self.heading {

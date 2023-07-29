@@ -2,17 +2,41 @@ use crate::{
     player::{Direction, Player, Position, Tail},
     utils::read_input,
 };
+use array2d::Array2D;
+use color_eyre::eyre::{eyre, ErrReport, Result};
+use rand::Rng;
+use termion::cursor;
 
-struct GameArea(u8, u8);
+pub struct GameBoard(pub Array2D<GameCell>);
+
+pub struct GameArea {
+    pub width: u8,
+    pub height: u8,
+}
 
 pub struct GameState {
     player: Player,
     tail: Tail,
-    game_area: GameArea,
-    powerup: Position,
+    pub game_area: GameArea,
+    powerup: Powerup,
 }
 
-enum GameCell {
+impl Default for GameState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+struct Powerup(Position);
+
+impl Powerup {
+    pub fn new(column_number: isize, row_number: isize) -> Self {
+        Self(Position::new(column_number, row_number))
+    }
+}
+
+#[derive(PartialEq, Clone, Copy)]
+pub enum GameCell {
     Head,
     Tail,
     Powerup,
@@ -20,15 +44,15 @@ enum GameCell {
     Edge,
 }
 
-fn determine_game_cell(
+pub fn determine_game_cell(
     game_state: &GameState,
     column_number: isize,
     row_number: isize,
 ) -> GameCell {
     if column_number == 0
         || row_number == 0
-        || column_number >= game_state.game_area.0.into()
-        || row_number >= game_state.game_area.1.into()
+        || column_number + 1 >= game_state.game_area.width.into()
+        || row_number + 1 >= game_state.game_area.height.into()
     {
         return GameCell::Edge;
     }
@@ -37,8 +61,8 @@ fn determine_game_cell(
     {
         return GameCell::Head;
     }
-    if game_state.powerup.column_number == column_number
-        && game_state.powerup.row_number == row_number
+    if game_state.powerup.0.column_number == column_number
+        && game_state.powerup.0.row_number == row_number
     {
         return GameCell::Powerup;
     }
@@ -46,63 +70,48 @@ fn determine_game_cell(
         return GameCell::Tail;
     }
 
-    return GameCell::Empty;
-}
-
-fn generate_game_visual(game_state: &GameState) -> String {
-    let mut rows: Vec<String> = Vec::new();
-    let horizontal_border = "-".repeat(game_state.game_area.0.into());
-    let normal_zone_columns = game_state.game_area.0 - 2;
-    let normal_zone_rows = game_state.game_area.1 - 2;
-    rows.push(horizontal_border.clone());
-
-    for row_number in 1..=normal_zone_rows {
-        let mut row = String::new();
-        row.push('|');
-        for column_number in 1..=normal_zone_columns {
-            let cell: GameCell =
-                determine_game_cell(&game_state, column_number.into(), row_number.into());
-            match cell {
-                GameCell::Head => row.push('S'),
-                GameCell::Tail => row.push('O'),
-                GameCell::Powerup => row.push('*'),
-                GameCell::Empty => row.push(' '),
-                GameCell::Edge => (),
-            }
-        }
-        row.push('|');
-        rows.push(row);
-    }
-
-    rows.push(horizontal_border.clone());
-    return rows.join("\n");
+    GameCell::Empty
 }
 
 impl GameState {
     pub fn new() -> Self {
         let player = Player::new(40, 15);
         let tail = Tail::new(39, 15);
-        let game_area = GameArea(80, 30);
-        let powerup = Position {
-            column_number: 10,
-            row_number: 10,
+        let game_area = GameArea {
+            width: 80,
+            height: 30,
         };
-        return Self {
+        let powerup = Powerup::new(10, 10);
+
+        Self {
             player,
             tail,
             game_area,
             powerup,
-        };
+        }
     }
+
+    fn randomize_powerup_position(&mut self) {
+        let mut rng = rand::thread_rng();
+        let mut powerup_column: isize = rng.gen_range(1..self.game_area.width).into();
+        let mut powerup_row: isize = rng.gen_range(1..self.game_area.height).into();
+        while determine_game_cell(self, powerup_column, powerup_row) != GameCell::Empty {
+            powerup_column = rng.gen_range(1..self.game_area.width).into();
+            powerup_row = rng.gen_range(1..self.game_area.height).into();
+        }
+        self.powerup = Powerup::new(powerup_column, powerup_row);
+    }
+
     pub fn run(&mut self) {
-        while let Some(_) = self.tick() {
+        while self.tick().is_some() {
             // handle input
             self.render();
             self.handle_input();
         }
     }
+
     fn handle_input(&mut self) {
-        let input = read_input().unwrap_or("*".into());
+        let input = read_input().unwrap_or("".into());
         let direction: Option<Direction> = match input.as_ref() {
             "h" => Some(Direction::Left),
             "j" => Some(Direction::Down),
@@ -119,7 +128,7 @@ impl GameState {
         let next_position = self.player.calculate_new_position();
 
         let next_game_cell: GameCell =
-            determine_game_cell(&self, next_position.column_number, next_position.row_number);
+            determine_game_cell(self, next_position.column_number, next_position.row_number);
 
         match next_game_cell {
             GameCell::Empty => {
@@ -131,7 +140,7 @@ impl GameState {
             GameCell::Powerup => {
                 let previous_position = self.player.move_player(next_position);
                 self.tail.positions.push_front(previous_position);
-                // TODO: change Powerup position
+                self.randomize_powerup_position();
                 Some(())
             }
             GameCell::Tail => None,
@@ -143,37 +152,36 @@ impl GameState {
     }
 
     fn render(&self) {
-        let visuals = generate_game_visual(self);
-        println!("{}", visuals);
+        let game_board_result = GameBoard::try_from(self);
+        if let Ok(game_board) = game_board_result {
+            print!(
+                "{}{}{}",
+                termion::clear::All,
+                cursor::Goto(1, 1),
+                game_board
+            );
+        }
+    }
+}
+
+impl TryFrom<&GameState> for GameBoard {
+    type Error = ErrReport;
+    fn try_from(value: &GameState) -> Result<Self> {
+        let rows: Vec<Vec<GameCell>> = (0..value.game_area.height)
+            .map(|row_index| {
+                let row: Vec<GameCell> = (0..value.game_area.width)
+                    .map(|column_index| {
+                        determine_game_cell(value, column_index.into(), row_index.into())
+                    })
+                    .collect();
+                row
+            })
+            .collect();
+        let two_dimensional_array =
+            Array2D::from_rows(&rows).map_err(|_| eyre!("unable to construct"))?;
+        Ok(GameBoard(two_dimensional_array))
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::GameState;
-    use crate::{
-        game::{generate_game_visual, GameArea},
-        player::{Player, Position, Tail},
-    };
-
-    #[test]
-    fn generate_game_visual_produces_expected_string() {
-        let game_state = GameState {
-            player: Player::new(3, 1),
-            tail: Tail::new(2, 1),
-            powerup: Position {
-                column_number: 1,
-                row_number: 1,
-            },
-            game_area: GameArea(5, 3),
-        };
-        // 6 x 6
-        let expected_output = r#"
------
-|*OS|
------
-"#
-        .trim();
-        assert_eq!(&generate_game_visual(&game_state), expected_output);
-    }
-}
+mod tests {}
