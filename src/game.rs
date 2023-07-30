@@ -1,24 +1,28 @@
-use crate::{
-    player::{Direction, Player, Position, Tail},
-    utils::read_input,
-};
+use crate::player::{Direction, Player, Position, Tail};
 use array2d::Array2D;
 use color_eyre::eyre::{eyre, ErrReport, Result};
 use rand::Rng;
-use termion::cursor;
+use std::io::{stdout, StdoutLock, Write};
+use std::process;
+use std::{thread, time::Duration};
+use termion::raw::RawTerminal;
+use termion::{async_stdin, cursor, event::Key, input::TermRead, raw::IntoRawMode};
 
 pub struct GameBoard(pub Array2D<GameCell>);
 
+#[derive(Clone, Copy)]
 pub struct GameArea {
     pub width: u8,
     pub height: u8,
 }
 
+#[derive(Clone)]
 pub struct GameState {
     player: Player,
     tail: Tail,
     pub game_area: GameArea,
     powerup: Powerup,
+    score: i16,
 }
 
 impl Default for GameState {
@@ -27,6 +31,7 @@ impl Default for GameState {
     }
 }
 
+#[derive(Clone, Copy)]
 struct Powerup(Position);
 
 impl Powerup {
@@ -88,6 +93,7 @@ impl GameState {
             tail,
             game_area,
             powerup,
+            score: 0,
         }
     }
 
@@ -102,21 +108,49 @@ impl GameState {
         self.powerup = Powerup::new(powerup_column, powerup_row);
     }
 
-    pub fn run(&mut self) {
-        while self.tick().is_some() {
-            // handle input
-            self.render();
-            self.handle_input();
+    pub fn run(&mut self) -> Result<i16> {
+        let stdout = stdout();
+        let mut stdout = stdout.lock().into_raw_mode()?;
+        let mut input = async_stdin().keys();
+        write!(
+            stdout,
+            "{}{}{}",
+            termion::clear::All,
+            cursor::Goto(1, 1),
+            cursor::Hide
+        )?;
+        stdout.flush()?;
+        loop {
+            let last_key = input.by_ref().last().unwrap_or(Ok(Key::Null))?;
+            if let Key::Char('q') = last_key {
+                drop(stdout);
+                process::exit(0);
+            }
+            self.handle_input(last_key);
+
+            if self.tick().is_none() {
+                break;
+            }
+            self.render(stdout.by_ref())?;
+            thread::sleep(Duration::from_millis(100));
         }
+        write!(stdout, "{}", cursor::Show)?;
+        stdout.flush()?;
+        Ok(self.score)
+    }
+    fn render(&self, stdout: &mut RawTerminal<StdoutLock<'_>>) -> Result<()> {
+        let game_board = GameBoard::try_from(self)?;
+        write!(stdout, "{}{}", cursor::Goto(1, 1), game_board,)?;
+        stdout.flush()?;
+        Ok(())
     }
 
-    fn handle_input(&mut self) {
-        let input = read_input().unwrap_or("".into());
-        let direction: Option<Direction> = match input.as_ref() {
-            "h" => Some(Direction::Left),
-            "j" => Some(Direction::Down),
-            "k" => Some(Direction::Up),
-            "l" => Some(Direction::Right),
+    fn handle_input(&mut self, input: Key) {
+        let direction = match input {
+            Key::Char('h') | Key::Left => Some(Direction::Left),
+            Key::Char('j') | Key::Down => Some(Direction::Down),
+            Key::Char('k') | Key::Up => Some(Direction::Up),
+            Key::Char('l') | Key::Right => Some(Direction::Right),
             _ => None,
         };
         if let Some(dir) = direction {
@@ -138,6 +172,7 @@ impl GameState {
                 Some(())
             }
             GameCell::Powerup => {
+                self.score += 1;
                 let previous_position = self.player.move_player(next_position);
                 self.tail.positions.push_front(previous_position);
                 self.randomize_powerup_position();
@@ -150,23 +185,30 @@ impl GameState {
             }
         }
     }
-
-    fn render(&self) {
-        let game_board_result = GameBoard::try_from(self);
-        if let Ok(game_board) = game_board_result {
-            print!(
-                "{}{}{}",
-                termion::clear::All,
-                cursor::Goto(1, 1),
-                game_board
-            );
-        }
-    }
 }
 
 impl TryFrom<&GameState> for GameBoard {
     type Error = ErrReport;
     fn try_from(value: &GameState) -> Result<Self> {
+        let rows: Vec<Vec<GameCell>> = (0..value.game_area.height)
+            .map(|row_index| {
+                let row: Vec<GameCell> = (0..value.game_area.width)
+                    .map(|column_index| {
+                        determine_game_cell(value, column_index.into(), row_index.into())
+                    })
+                    .collect();
+                row
+            })
+            .collect();
+        let two_dimensional_array =
+            Array2D::from_rows(&rows).map_err(|_| eyre!("unable to construct"))?;
+        Ok(GameBoard(two_dimensional_array))
+    }
+}
+
+impl TryFrom<&mut GameState> for GameBoard {
+    type Error = ErrReport;
+    fn try_from(value: &mut GameState) -> Result<Self> {
         let rows: Vec<Vec<GameCell>> = (0..value.game_area.height)
             .map(|row_index| {
                 let row: Vec<GameCell> = (0..value.game_area.width)

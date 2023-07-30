@@ -15,6 +15,7 @@ enum Screen {
 pub struct App {
     state: Screen,
     game_state: GameState,
+    score: Option<i16>,
 }
 
 impl Default for App {
@@ -28,6 +29,7 @@ impl App {
         Self {
             state: Screen::Welcome,
             game_state: GameState::new(),
+            score: None,
         }
     }
     fn change_screen(&mut self) {
@@ -66,11 +68,37 @@ impl App {
                     self.change_screen();
                 }
                 Screen::GamePlay => {
-                    self.game_state.run();
+                    let score = self.game_state.run().unwrap();
+                    self.score = Some(score);
                     self.change_screen();
                     self.game_state = GameState::new()
                 }
                 Screen::Score => {
+                    let stdin = stdin();
+                    let mut stdout = stdout().into_raw_mode().unwrap();
+                    if let Some(score) = self.score {
+                        write!(
+                            stdout,
+                            "{}{} YOU SCORED: {}!!!",
+                            clear::All,
+                            cursor::Goto(1, 1),
+                            score
+                        )
+                        .unwrap();
+                    }
+                    stdout.flush().unwrap();
+                    for c in stdin.keys() {
+                        match c.unwrap() {
+                            Key::Char('q') | Key::Ctrl('c') => {
+                                drop(stdout);
+                                process::exit(0);
+                            }
+                            Key::Char(_) => {
+                                break;
+                            }
+                            _ => (),
+                        }
+                    }
                     self.change_screen();
                 }
             };

@@ -49,7 +49,7 @@ impl fmt::Display for Position {
         )
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tail {
     pub positions: VecDeque<Position>,
 }
@@ -69,7 +69,7 @@ impl Tail {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Player {
     pub head_position: Position,
     pub heading: Direction,
