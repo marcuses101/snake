@@ -22,12 +22,12 @@ pub struct GameState {
     tail: Tail,
     pub game_area: GameArea,
     powerup: Powerup,
-    score: i16,
+    score: u16,
 }
 
 impl Default for GameState {
     fn default() -> Self {
-        Self::new()
+        Self::new(60, 25)
     }
 }
 
@@ -41,12 +41,22 @@ impl Powerup {
 }
 
 #[derive(PartialEq, Clone, Copy)]
+pub enum Wall {
+    Horizontal,
+    Vertical,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+#[derive(PartialEq, Clone, Copy)]
 pub enum GameCell {
-    Head,
+    Head(Direction),
     Tail,
     Powerup,
     Empty,
-    Edge,
+    Edge(Wall),
 }
 
 pub fn determine_game_cell(
@@ -54,38 +64,42 @@ pub fn determine_game_cell(
     column_number: isize,
     row_number: isize,
 ) -> GameCell {
-    if column_number == 0
-        || row_number == 0
-        || column_number + 1 >= game_state.game_area.width.into()
-        || row_number + 1 >= game_state.game_area.height.into()
-    {
-        return GameCell::Edge;
-    }
-    if game_state.player.head_position.column_number == column_number
-        && game_state.player.head_position.row_number == row_number
-    {
-        return GameCell::Head;
-    }
-    if game_state.powerup.0.column_number == column_number
-        && game_state.powerup.0.row_number == row_number
-    {
-        return GameCell::Powerup;
-    }
-    if game_state.tail.check(column_number, row_number) {
-        return GameCell::Tail;
-    }
+    let right_edge: isize = (game_state.game_area.width - 1).into();
+    let bottom_edge: isize = (game_state.game_area.height - 1).into();
 
-    GameCell::Empty
+    match (column_number, row_number) {
+        (0, 0) => GameCell::Edge(Wall::TopLeft),
+        (c, 0) if c == right_edge => GameCell::Edge(Wall::TopRight),
+        (0, r) if r == bottom_edge => GameCell::Edge(Wall::BottomLeft),
+        (c, r) if c == right_edge && r == bottom_edge => GameCell::Edge(Wall::BottomRight),
+        (0, _) => GameCell::Edge(Wall::Vertical),
+        (c, _) if c == right_edge => GameCell::Edge(Wall::Vertical),
+        (_, 0) => GameCell::Edge(Wall::Horizontal),
+        (_, r) if r == bottom_edge => GameCell::Edge(Wall::Horizontal),
+        _ if game_state.player.head_position.column_number == column_number
+            && game_state.player.head_position.row_number == row_number =>
+        {
+            GameCell::Head(game_state.player.heading)
+        }
+        _ if game_state.powerup.0.column_number == column_number
+            && game_state.powerup.0.row_number == row_number =>
+        {
+            GameCell::Powerup
+        }
+        _ if game_state.tail.check(column_number, row_number) => GameCell::Tail,
+        _ => GameCell::Empty,
+    }
 }
 
 impl GameState {
-    pub fn new() -> Self {
-        let player = Player::new(40, 15);
-        let tail = Tail::new(39, 15);
-        let game_area = GameArea {
-            width: 80,
-            height: 30,
-        };
+    pub fn new(width: u8, height: u8) -> Self {
+        let player_x = width / 2;
+        let player_y = height / 2;
+        let tail_x = player_x - 1;
+        let tail_y = player_y;
+        let player = Player::new(player_x.into(), player_y.into());
+        let tail = Tail::new(tail_x.into(), tail_y.into());
+        let game_area = GameArea { width, height };
         let powerup = Powerup::new(10, 10);
 
         Self {
@@ -108,7 +122,7 @@ impl GameState {
         self.powerup = Powerup::new(powerup_column, powerup_row);
     }
 
-    pub fn run(&mut self) -> Result<i16> {
+    pub fn run(&mut self) -> Result<u16> {
         let stdout = stdout();
         let mut stdout = stdout.lock().into_raw_mode()?;
         let mut input = async_stdin().keys();
@@ -132,12 +146,13 @@ impl GameState {
                 break;
             }
             self.render(stdout.by_ref())?;
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(75));
         }
         write!(stdout, "{}", cursor::Show)?;
         stdout.flush()?;
         Ok(self.score)
     }
+
     fn render(&self, stdout: &mut RawTerminal<StdoutLock<'_>>) -> Result<()> {
         let game_board = GameBoard::try_from(self)?;
         write!(stdout, "{}{}", cursor::Goto(1, 1), game_board,)?;
@@ -179,8 +194,8 @@ impl GameState {
                 Some(())
             }
             GameCell::Tail => None,
-            GameCell::Edge => None,
-            GameCell::Head => {
+            GameCell::Edge(_) => None,
+            GameCell::Head(_) => {
                 panic!("impossible behaviour");
             }
         }
@@ -190,25 +205,6 @@ impl GameState {
 impl TryFrom<&GameState> for GameBoard {
     type Error = ErrReport;
     fn try_from(value: &GameState) -> Result<Self> {
-        let rows: Vec<Vec<GameCell>> = (0..value.game_area.height)
-            .map(|row_index| {
-                let row: Vec<GameCell> = (0..value.game_area.width)
-                    .map(|column_index| {
-                        determine_game_cell(value, column_index.into(), row_index.into())
-                    })
-                    .collect();
-                row
-            })
-            .collect();
-        let two_dimensional_array =
-            Array2D::from_rows(&rows).map_err(|_| eyre!("unable to construct"))?;
-        Ok(GameBoard(two_dimensional_array))
-    }
-}
-
-impl TryFrom<&mut GameState> for GameBoard {
-    type Error = ErrReport;
-    fn try_from(value: &mut GameState) -> Result<Self> {
         let rows: Vec<Vec<GameCell>> = (0..value.game_area.height)
             .map(|row_index| {
                 let row: Vec<GameCell> = (0..value.game_area.width)

@@ -1,6 +1,7 @@
-use crate::{game::GameState, welcome::WELCOME_SCREEN};
+use crate::game::GameState;
+use crate::welcome::display_welcome_screen;
+use std::fs;
 use std::io::{stdin, stdout, Write};
-use std::process;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
@@ -15,21 +16,27 @@ enum Screen {
 pub struct App {
     state: Screen,
     game_state: GameState,
-    score: Option<i16>,
+    score: Option<u16>,
+    high_score: u16,
+    width: u8,
+    height: u8,
 }
 
 impl Default for App {
     fn default() -> Self {
-        Self::new()
+        Self::new(0, 60, 25)
     }
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(high_score: u16, width: u8, height: u8) -> Self {
         Self {
             state: Screen::Welcome,
-            game_state: GameState::new(),
+            game_state: GameState::new(width, height),
             score: None,
+            high_score,
+            width,
+            height,
         }
     }
     fn change_screen(&mut self) {
@@ -40,60 +47,57 @@ impl App {
         };
     }
     pub fn run(&mut self) {
-        loop {
+        'game_loop: loop {
             match self.state {
                 Screen::Welcome => {
-                    print!(
-                        "{}{}{}",
-                        clear::All,
-                        cursor::Goto(1, 1),
-                        WELCOME_SCREEN.trim_start(),
-                    );
-                    let stdin = stdin();
-                    let mut stdout = stdout().into_raw_mode().unwrap();
-                    for c in stdin.keys() {
-                        match c.unwrap() {
-                            Key::Char('q') | Key::Ctrl('c') => {
-                                drop(stdout);
-                                process::exit(0);
-                            }
-                            Key::Char(_) => {
-                                break;
-                            }
-                            _ => (),
-                        }
+                    print!("{}{}", clear::All, cursor::Goto(1, 1));
+                    if display_welcome_screen(self.width, self.height).is_none() {
+                        break 'game_loop;
                     }
-                    write!(stdout, "{}{}", clear::All, cursor::Goto(1, 1)).unwrap();
-                    stdout.flush().unwrap();
                     self.change_screen();
                 }
                 Screen::GamePlay => {
                     let score = self.game_state.run().unwrap();
                     self.score = Some(score);
                     self.change_screen();
-                    self.game_state = GameState::new()
+                    self.game_state = GameState::new(self.width, self.height)
                 }
                 Screen::Score => {
                     let stdin = stdin();
                     let mut stdout = stdout().into_raw_mode().unwrap();
                     if let Some(score) = self.score {
-                        write!(
-                            stdout,
-                            "{}{} YOU SCORED: {}!!!",
-                            clear::All,
-                            cursor::Goto(1, 1),
-                            score
-                        )
-                        .unwrap();
+                        if score > self.high_score {
+                            let content = score.to_string();
+                            fs::write("high_score.txt", content).unwrap();
+                            write!(
+                                stdout,
+                                "{}{}YOU GOT THE NEW HIGH SCORE: {}!!! \n\r\n\rTHE PREVIOUS HIGH SCRORE WAS {}\n\r\n\rPress the SPACEBAR to contiue",
+                                clear::All,
+                                cursor::Goto(1, 1),
+                                score,
+                                self.high_score
+                                )
+                                .unwrap();
+                            self.high_score = score;
+                        } else {
+                            write!(
+                                stdout,
+                                "{}{}YOU SCORED: {}!!! \n\r\n\rHIGH SCORE: {}\n\r\n\rPress the SPACEBAR to contiue",
+                                clear::All,
+                                cursor::Goto(1, 1),
+                                score,
+                                self.high_score
+                            )
+                            .unwrap();
+                        }
                     }
                     stdout.flush().unwrap();
                     for c in stdin.keys() {
                         match c.unwrap() {
                             Key::Char('q') | Key::Ctrl('c') => {
-                                drop(stdout);
-                                process::exit(0);
+                                break 'game_loop;
                             }
-                            Key::Char(_) => {
+                            Key::Char(' ') => {
                                 break;
                             }
                             _ => (),
