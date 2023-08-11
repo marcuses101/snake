@@ -16,10 +16,10 @@ enum Screen {
 pub struct App {
     state: Screen,
     game_state: GameState,
-    score: Option<u16>,
-    high_score: u16,
-    width: u8,
-    height: u8,
+    score: Option<usize>,
+    high_score: usize,
+    width: usize,
+    height: usize,
 }
 
 impl Default for App {
@@ -29,7 +29,7 @@ impl Default for App {
 }
 
 impl App {
-    pub fn new(high_score: u16, width: u8, height: u8) -> Self {
+    pub fn new(high_score: usize, width: usize, height: usize) -> Self {
         Self {
             state: Screen::Welcome,
             game_state: GameState::new(width, height),

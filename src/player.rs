@@ -28,11 +28,11 @@ impl TryFrom<String> for Direction {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Position {
-    pub column_number: isize,
-    pub row_number: isize,
+    pub column_number: usize,
+    pub row_number: usize,
 }
 impl Position {
-    pub fn new(column_number: isize, row_number: isize) -> Self {
+    pub fn new(column_number: usize, row_number: usize) -> Self {
         Self {
             column_number,
             row_number,
@@ -55,12 +55,12 @@ pub struct Tail {
 }
 
 impl Tail {
-    pub fn new(column_number: isize, row_number: isize) -> Self {
+    pub fn new(column_number: usize, row_number: usize) -> Self {
         Tail {
             positions: VecDeque::from([Position::new(column_number, row_number)]),
         }
     }
-    pub fn check(&self, column_number: isize, row_number: isize) -> bool {
+    pub fn check(&self, column_number: usize, row_number: usize) -> bool {
         return self
             .positions
             .iter()
@@ -76,7 +76,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(x: isize, y: isize) -> Self {
+    pub fn new(x: usize, y: usize) -> Self {
         Self {
             head_position: Position {
                 column_number: x,

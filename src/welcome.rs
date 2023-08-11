@@ -7,25 +7,25 @@ use termion::{clear, cursor};
 
 const WELCOME_MESSAGE: &str = "HAPPY BIRTHDAY LAURENCE!!!";
 
-fn get_inner_row(text: Option<&str>, width: u8) -> String {
+fn get_inner_row(text: Option<&str>, width: usize) -> String {
     let mut output = String::new();
     output.push(VERTICAL_WALL);
     match text {
         None => {
             let number_of_inner_characters = width - 2;
-            let inner = " ".repeat(number_of_inner_characters.into());
+            let inner = " ".repeat(number_of_inner_characters);
             output.push_str(&inner);
         }
         Some(text) => {
-            let text_length: u8 = text.len().try_into().unwrap();
-            let total_space_characters: u8 = width - text_length - 2;
+            let text_length: usize = text.len();
+            let total_space_characters: usize = width - text_length - 2;
             if total_space_characters % 2 == 0 {
-                let spaces = " ".repeat((total_space_characters / 2).into());
+                let spaces = " ".repeat(total_space_characters / 2);
                 output.push_str(&spaces);
                 output.push_str(text);
                 output.push_str(&spaces);
             } else {
-                let spaces = " ".repeat((total_space_characters / 2).into());
+                let spaces = " ".repeat(total_space_characters / 2);
                 output.push_str(&spaces);
                 output.push_str(text);
                 output.push(' ');
@@ -37,17 +37,17 @@ fn get_inner_row(text: Option<&str>, width: u8) -> String {
     output
 }
 
-pub fn display_welcome_screen(width: u8, height: u8) -> Option<()> {
+pub fn display_welcome_screen(width: usize, height: usize) -> Option<()> {
     let top_border = format!(
         "{}{}{}",
         TOP_LEFT_CORNER,
-        HORIZONTAL_WALL.to_string().repeat((width - 2).into()),
+        HORIZONTAL_WALL.to_string().repeat(width - 2),
         TOP_RIGHT_CORNER
     );
     let bottom_border = format!(
         "{}{}{}",
         BOTTOM_LEFT_CORNER,
-        HORIZONTAL_WALL.to_string().repeat((width - 2).into()),
+        HORIZONTAL_WALL.to_string().repeat(width - 2),
         BOTTOM_RIGHT_CORNER
     );
 
@@ -55,11 +55,11 @@ pub fn display_welcome_screen(width: u8, height: u8) -> Option<()> {
         .split(' ')
         .flat_map(|word| vec![get_inner_row(Some(word), width), get_inner_row(None, width)])
         .collect();
-    let word_rows_length: u8 = word_rows.len().try_into().unwrap();
-    let number_of_empty_rows: u8 = height - 2 - word_rows_length;
+    let word_rows_length: usize = word_rows.len();
+    let number_of_empty_rows: usize = height - 2 - word_rows_length;
 
     let empty_row = get_inner_row(None, width);
-    let half_of_empty_rows = vec![empty_row; (number_of_empty_rows / 2).into()];
+    let half_of_empty_rows = vec![empty_row; number_of_empty_rows / 2];
 
     let mut rows = vec![top_border];
     rows.extend(half_of_empty_rows.clone());

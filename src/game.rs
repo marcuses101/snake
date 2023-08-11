@@ -12,8 +12,8 @@ pub struct GameBoard(pub Array2D<GameCell>);
 
 #[derive(Clone, Copy)]
 pub struct GameArea {
-    pub width: u8,
-    pub height: u8,
+    pub width: usize,
+    pub height: usize,
 }
 
 #[derive(Clone)]
@@ -22,7 +22,7 @@ pub struct GameState {
     tail: Tail,
     pub game_area: GameArea,
     powerup: Powerup,
-    score: u16,
+    score: usize,
 }
 
 impl Default for GameState {
@@ -35,7 +35,7 @@ impl Default for GameState {
 struct Powerup(Position);
 
 impl Powerup {
-    pub fn new(column_number: isize, row_number: isize) -> Self {
+    pub fn new(column_number: usize, row_number: usize) -> Self {
         Self(Position::new(column_number, row_number))
     }
 }
@@ -61,11 +61,11 @@ pub enum GameCell {
 
 pub fn determine_game_cell(
     game_state: &GameState,
-    column_number: isize,
-    row_number: isize,
+    column_number: usize,
+    row_number: usize,
 ) -> GameCell {
-    let right_edge: isize = (game_state.game_area.width - 1).into();
-    let bottom_edge: isize = (game_state.game_area.height - 1).into();
+    let right_edge = game_state.game_area.width - 1;
+    let bottom_edge = game_state.game_area.height - 1;
 
     match (column_number, row_number) {
         (0, 0) => GameCell::Edge(Wall::TopLeft),
@@ -92,13 +92,13 @@ pub fn determine_game_cell(
 }
 
 impl GameState {
-    pub fn new(width: u8, height: u8) -> Self {
+    pub fn new(width: usize, height: usize) -> Self {
         let player_x = width / 2;
         let player_y = height / 2;
         let tail_x = player_x - 1;
         let tail_y = player_y;
-        let player = Player::new(player_x.into(), player_y.into());
-        let tail = Tail::new(tail_x.into(), tail_y.into());
+        let player = Player::new(player_x, player_y);
+        let tail = Tail::new(tail_x, tail_y);
         let game_area = GameArea { width, height };
         let powerup = Powerup::new(10, 10);
 
@@ -113,16 +113,16 @@ impl GameState {
 
     fn randomize_powerup_position(&mut self) {
         let mut rng = rand::thread_rng();
-        let mut powerup_column: isize = rng.gen_range(1..self.game_area.width).into();
-        let mut powerup_row: isize = rng.gen_range(1..self.game_area.height).into();
+        let mut powerup_column: usize = rng.gen_range(1..self.game_area.width);
+        let mut powerup_row: usize = rng.gen_range(1..self.game_area.height);
         while determine_game_cell(self, powerup_column, powerup_row) != GameCell::Empty {
-            powerup_column = rng.gen_range(1..self.game_area.width).into();
-            powerup_row = rng.gen_range(1..self.game_area.height).into();
+            powerup_column = rng.gen_range(1..self.game_area.width);
+            powerup_row = rng.gen_range(1..self.game_area.height);
         }
         self.powerup = Powerup::new(powerup_column, powerup_row);
     }
 
-    pub fn run(&mut self) -> Result<u16> {
+    pub fn run(&mut self) -> Result<usize> {
         let stdout = stdout();
         let mut stdout = stdout.lock().into_raw_mode()?;
         let mut input = async_stdin().keys();
@@ -208,9 +208,7 @@ impl TryFrom<&GameState> for GameBoard {
         let rows: Vec<Vec<GameCell>> = (0..value.game_area.height)
             .map(|row_index| {
                 let row: Vec<GameCell> = (0..value.game_area.width)
-                    .map(|column_index| {
-                        determine_game_cell(value, column_index.into(), row_index.into())
-                    })
+                    .map(|column_index| determine_game_cell(value, column_index, row_index))
                     .collect();
                 row
             })
